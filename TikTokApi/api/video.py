@@ -129,50 +129,33 @@ class Video:
         """
         Returns the bytes of a TikTok Video.
 
-        TODO:
-            Not implemented yet.
-
         Example Usage:
             .. code-block:: python
 
-                video_bytes = api.video(id='7041997751718137094').bytes()
+                video_bytes = await api.video(id='7041997751718137094').bytes()
 
                 # Saving The Video
                 with open('saved_video.mp4', 'wb') as output:
                     output.write(video_bytes)
         """
+        if self.id is None and self.url is None:
+            raise TypeError("To call video.bytes() you need to set either the video's id or url.")
 
-        raise NotImplementedError
-        i, session = self.parent._get_session(**kwargs)
-        downloadAddr = self.as_dict["video"]["downloadAddr"]
+        # If URL is not set, construct it from the video ID
+        if self.url is None:
+            self.url = f"https://www.tiktok.com/@{self.as_dict['author']['uniqueId']}/video/{self.id}"  # Replace 'username' appropriately if possible
 
-        cookies = await self.parent.get_session_cookies(session)
-        cookie_str = "; ".join([f"{k}={v}" for k, v in cookies.items()])
+        # Generate the signed URL for the video
+        signed_url = await self.parent.sign_url(self.url, **kwargs)
 
-        h = session.headers
-        h["cookie"] = cookie_str
+        # Fetch the video bytes
+        video_content = await self.parent.run_fetch_script(signed_url, headers={}, **kwargs)
 
-        # Fetching the video bytes using a browser fetch within the page context
-        file_bytes = await session.page.evaluate(
-            """
-        async (url, headers) => {
-            const response = await fetch(url, { headers });
-            if (response.ok) {
-                const buffer = await response.arrayBuffer();
-                return new Uint8Array(buffer);
-            } else {
-                return `Error: ${response.statusText}`;  // Return an error message if the fetch fails
-            }
-        }
-        """,
-            (downloadAddr, h),
-        )
+        if video_content is None:
+            raise Exception("Failed to fetch video bytes.")
 
-        byte_values = [
-            value
-            for key, value in sorted(file_bytes.items(), key=lambda item: int(item[0]))
-        ]
-        return bytes(byte_values)
+        return video_content.encode()
+
 
     def __extract_from_data(self) -> None:
         data = self.as_dict
