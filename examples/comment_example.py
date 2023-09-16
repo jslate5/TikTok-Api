@@ -3,7 +3,7 @@ import asyncio
 import os
 
 video_id = 7248300636498890011
-ms_token = os.environ.get("ms_token", None)  # set your own ms_token
+ms_token = os.environ.get("ms_token", None)  # set your own ms_token.
 
 
 async def get_comments():
